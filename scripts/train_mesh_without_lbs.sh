@@ -1,5 +1,10 @@
-python train_mesh_without_lbs.py --save_name a1_s1_460_200 --downsample_view 1 --num_frames 200 \
+data_dir=/home/lixin/mount/scratch/GSTAR
+seq=mocap_240724_Take10
+num_frames=135
+save_name=${seq}
+CUDA_LAUNCH_BLOCKING=1 python train_mesh_without_lbs.py \
+ --save_name ${save_name} --downsample_view 1 --num_frames ${num_frames} --start_idx 0 --seq ${seq} \
+ --obj_name mesh_first_frame.obj --cloth_name mesh_first_frame.obj --data_path ${data_dir}/${seq}  \
  --lr_means3D 0.00004 --lr_colors 0.0025 --lr_smplx 0 \
- --normal_weight 0.1 --iso_weight 20  --area_weight 50 --eq_faces_weight 1000 --collision_weight 10 \
- --obj_name FrameRec000460.obj --cloth_name cloth_sim.obj --data_path ./data/ActorsHQ/Actor01/Sequence1 \
- --start_idx 460 --wandb --wandb_entity lxxue --wandb_name a1_s1_460_200 --wandb_proj PhysAvatar
+ --normal_weight 0.1 --iso_weight 20  --area_weight 50 --eq_faces_weight 1000 --collision_weight 0 \
+ --wandb --wandb_entity lxxue --wandb_name ${seq} --wandb_proj PhysAvatar

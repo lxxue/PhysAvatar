@@ -19,8 +19,9 @@ from utils.geo_utils import compute_vertex_normals, compute_face_normals, \
     compute_face_barycenters, compute_q_from_faces, compute_face_areas
 from losses.physics import collision_penalty
 
+root="/home/lixin/mount/scratch/lixin/GSTAR"
 
-def get_dataset(t, md, seq,  data_path, downsample=False, downsample_view=1):
+def get_dataset(t, md, seq):
     dataset = []
     # smplx_param_t = torch.load(f'./data/{seq}/smplx_fitted/{str(t).zfill(6)}.pth')
     # smplx_param_t_1 = torch.load(f'./data/{seq}/smplx_fitted/{str(t + 1).zfill(6)}.pth')
@@ -29,34 +30,53 @@ def get_dataset(t, md, seq,  data_path, downsample=False, downsample_view=1):
     # smplx_f = torch.from_numpy(smplx_f).cuda().long()
     # smplx_vn = compute_vertex_normals(smplx_v, smplx_f).cuda().float()
 
-    if downsample_view == 8:
-        selected_cam = ['Cam005', 'Cam008', 'Cam023', 'Cam037', 'Cam053', 'Cam055', 'Cam078', 'Cam079', 'Cam094', 'Cam096',
-                        'Cam109', 'Cam112', 'Cam119', 'Cam127', 'Cam128', 'Cam131', 'Cam137', 'Cam133', 'Cam141', 'Cam121']
-    else:
-        selected_cam = list(md.keys())[::downsample_view]
-    for i, c in enumerate(md.keys()):
-        if c not in selected_cam:
-            continue
-        cam_info = md[c]
-        w, h, k, c2w = cam_info['W'], cam_info['H'], cam_info['K'], cam_info['RT']
-        w2c = np.linalg.inv(np.array(c2w))
-        if downsample:
-            w, h = w // 2, h // 2
-            k = k / 2
-            k[2, 2] = 1
-        cam = setup_camera(w, h, k, w2c, near=1, far=10)
-
-        cam_name = c.split('Cam')[1]
-        im_name = str(t).zfill(6) + ".jpg"
-
-        im = np.array(copy.deepcopy(Image.open(os.path.join(data_path, f"4x/rgbs/Cam{cam_name}/Cam{cam_name}_rgb{im_name}")))).astype(np.float32)
+    # if downsample_view == 8:
+    #     selected_cam = ['Cam005', 'Cam008', 'Cam023', 'Cam037', 'Cam053', 'Cam055', 'Cam078', 'Cam079', 'Cam094', 'Cam096',
+    #                     'Cam109', 'Cam112', 'Cam119', 'Cam127', 'Cam128', 'Cam131', 'Cam137', 'Cam133', 'Cam141', 'Cam121']
+    # else:
+    #     selected_cam = list(md.keys())[::downsample_view]
+    for c in range(len(md["fn"][t])):
+        w, h, k, w2c = md['w'], md['h'], md['k'][t][c], md['w2c'][t][c]
+        cam_id = md['cam_ids'][t][c]
+        cam = setup_camera(w, h, k, w2c, near=1.0, far=10)
+        fn = md['fn'][t][c]
+        im = np.array(copy.deepcopy(Image.open(f"{root}/{seq}/images_2x/{fn}")))
+        seg = np.array(copy.deepcopy(Image.open(f"{root}/{seq}/scan_mask_2x/{fn.replace('.jpg', '.png')}"))).astype(np.float32)
+        seg /= 255
+        im = im * seg[:, :, None]
+        # mask = seg > 127
+        # im = im * mask[:, :, None]
+        # seg = seg[:, :, 0]
         im = torch.tensor(im).float().cuda().permute(2, 0, 1) / 255
-        if downsample:
-            im = torch.nn.functional.interpolate(im[None], scale_factor=0.5, mode='bilinear', align_corners=False)[0]
-        # dataset.append({'cam': cam, 'im': im, 'id': int(cam_name) - 1, 't': t,
-        #                 'smplx_param': smplx_param_t, 'smplx_param_1': smplx_param_t_1,
-        #                 'smplx_v': smplx_v, 'smplx_vn': smplx_vn})
-        dataset.append({'cam': cam, 'im': im, 'id': int(cam_name) - 1, 't': t})
+        # seg = torch.tensor(seg).float().cuda()
+        # seg_col = torch.stack((seg, torch.zeros_like(seg), 1 - seg))
+        # dataset.append({'cam': cam, 'im': im, 'seg': seg_col, 'id': c})
+        dataset.append({'cam': cam, 'im': im, 'id': cam_id, 't': t})
+
+
+    # for i, c in enumerate(md.keys()):
+    #     if c not in selected_cam:
+    #         continue
+    #     cam_info = md[c]
+    #     w, h, k, c2w = cam_info['W'], cam_info['H'], cam_info['K'], cam_info['RT']
+    #     w2c = np.linalg.inv(np.array(c2w))
+    #     # if downsample:
+    #     #     w, h = w // 2, h // 2
+    #     #     k = k / 2
+    #     #     k[2, 2] = 1
+    #     cam = setup_camera(w, h, k, w2c, near=1, far=10)
+
+    #     cam_name = c.split('Cam')[1]
+    #     im_name = str(t).zfill(6) + ".jpg"
+
+    #     im = np.array(copy.deepcopy(Image.open(os.path.join(data_path, f"4x/rgbs/Cam{cam_name}/Cam{cam_name}_rgb{im_name}")))).astype(np.float32)
+    #     im = torch.tensor(im).float().cuda().permute(2, 0, 1) / 255
+    #     if downsample:
+    #         im = torch.nn.functional.interpolate(im[None], scale_factor=0.5, mode='bilinear', align_corners=False)[0]
+    #     # dataset.append({'cam': cam, 'im': im, 'id': int(cam_name) - 1, 't': t,
+    #     #                 'smplx_param': smplx_param_t, 'smplx_param_1': smplx_param_t_1,
+    #     #                 'smplx_v': smplx_v, 'smplx_vn': smplx_vn})
+    #     dataset.append({'cam': cam, 'im': im, 'id': int(cam_name) - 1, 't': t})
     return dataset
 
 
@@ -88,7 +108,8 @@ def read_obj(filename):
             edge1 = v2 - v1
             edge2 = v3 - v1
             normal = np.cross(edge1, edge2)
-            normal = normal / np.linalg.norm(normal)  # Normalize the vector
+            # normal = normal / np.linalg.norm(normal)  # Normalize the vector
+            normal = np.divide(normal, np.linalg.norm(normal), where=np.linalg.norm(normal) != 0)
             face_normals.append(normal)
 
         face_normals = np.array(face_normals, dtype=np.float32)
@@ -96,13 +117,13 @@ def read_obj(filename):
     return vertices, indices, face_normals
 
 def initialize_params(seq, md, obj_fn, cloth_fn):
-    obj_fn = f"./data/{seq}/{obj_fn}"
+    obj_fn = f"{root}/{seq}/{obj_fn}"
     obj, faces, normals = read_obj(obj_fn)
 
-    cloth_fn = f"./data/{seq}/{cloth_fn}"
-    if not os.path.exists(cloth_fn):
-        print(f"cloth_fn {cloth_fn} does not exist")
-        cloth_fn = obj_fn
+    # cloth_fn = f"{root}/{seq}/{cloth_fn}"
+    # if not os.path.exists(cloth_fn):
+    #     print(f"cloth_fn {cloth_fn} does not exist")
+    #     cloth_fn = obj_fn
 
     max_cams = 160
     init_v = obj[:, :3]
@@ -130,7 +151,8 @@ def initialize_params(seq, md, obj_fn, cloth_fn):
     }
     params = {k: torch.nn.Parameter(torch.tensor(v).cuda().float().contiguous().requires_grad_(True)) for k, v in
               params.items()}
-    w2c = [np.linalg.inv(np.array(md[k]['RT'])) for k in md.keys()]
+    # w2c = [np.linalg.inv(np.array(md[k]['RT'])) for k in md.keys()]
+    w2c = md["w2c"][0]
 
 
     cam_centers = np.linalg.inv(w2c)[:, :3, 3]  # Get scene radius
@@ -155,12 +177,12 @@ def initialize_params(seq, md, obj_fn, cloth_fn):
                  'face_neighbors': torch.tensor(face_neighbors).cuda().long(),
                  'neighbor_weight': torch.tensor(neighbor_weight).cuda().float().contiguous(),
                  'neighbor_dist': torch.tensor(neighbor_dist).cuda().float().contiguous(),}
-    if os.path.exists(cloth_fn):
-        cloth_obj, cloth_faces, cloth_normals = read_obj(cloth_fn)
-        cloth_vertices = np.unique(cloth_faces.reshape(-1))
-        cloth_vertices = torch.tensor(cloth_vertices).cuda().long()
-        variables['cloth_v_idx'] = cloth_vertices
-        print('cloth vertices', cloth_vertices.shape)
+    # if os.path.exists(cloth_fn):
+    #     cloth_obj, cloth_faces, cloth_normals = read_obj(cloth_fn)
+    #     cloth_vertices = np.unique(cloth_faces.reshape(-1))
+    #     cloth_vertices = torch.tensor(cloth_vertices).cuda().long()
+    #     variables['cloth_v_idx'] = cloth_vertices
+    #     print('cloth vertices', cloth_vertices.shape)
 
     return params, variables
 
@@ -308,10 +330,10 @@ def initialize_per_timestep(params, variables, optimizer):
     variables["prev_pts"] = pts.detach().clone()
     variables["prev_rot"] = rot.detach()
 
-    if 'cloth_v_idx' in variables.keys():
-        cloth_v_idx = variables['cloth_v_idx']
-        print('update cloth vertices using inertia, cloth_v_idx: ', cloth_v_idx.shape)
-        pts[cloth_v_idx] = new_pts[cloth_v_idx]
+    # if 'cloth_v_idx' in variables.keys():
+    #     cloth_v_idx = variables['cloth_v_idx']
+    #     print('update cloth vertices using inertia, cloth_v_idx: ', cloth_v_idx.shape)
+    #     pts[cloth_v_idx] = new_pts[cloth_v_idx]
     new_params = {'vertices': pts.detach()}
 
     params = update_params_and_optimizer(new_params, params, optimizer)
@@ -356,7 +378,7 @@ def resume_timestep(params, variables, args):
     return params, variables
 
 def report_progress(params, variables, data, i, progress_bar, every_i=100):
-    if i % every_i == 0:
+    if (i+1) % every_i == 0:
         im, _, _, = Renderer(raster_settings=data['cam'])(**params2rendervar(params, variables))
         curr_id = data['id']
         im = torch.exp(params['cam_m'][curr_id])[:, None, None] * im + params['cam_c'][curr_id][:, None, None]
@@ -369,7 +391,7 @@ def report_progress(params, variables, data, i, progress_bar, every_i=100):
         progress_bar.update(every_i)
         if USE_WANDB:
             wandb.log({'psnr': psnr.item(), 'gaussians_num': gaussians_num_c})
-            if i == 2900:
+            if (i+1) == 2900:
                 # log images
                 print("logging images")
                 save_pred = im.detach().cpu().numpy().squeeze().transpose(1,2,0)
@@ -388,7 +410,8 @@ def report_progress(params, variables, data, i, progress_bar, every_i=100):
 
 def train(seq, args):
     exp = args.exp_name
-    md = json.load(open(f"./data/{seq}/cam_info.json", 'r'))
+    # md = json.load(open(f"./data/{seq}/cam_info.json", 'r'))
+    md = json.load(open(f"{root}/{seq}/Dynamic3DGS/train_meta.json", 'r'))
     start_idx = args.start_idx
     num_timesteps = args.num_frames
     params, variables = initialize_params(seq, md, args.obj_name, args.cloth_name)
@@ -403,7 +426,7 @@ def train(seq, args):
         optimizer = initialize_optimizer(params, variables, args)
     beta = None
     for t in range(resume_idx, resume_idx + num_timesteps):
-        dataset = get_dataset(t, md, seq, args.data_path, downsample_view=args.downsample_view)
+        dataset = get_dataset(t, md, seq)
         todo_dataset = []
         is_initial_timestep = (t == resume_idx)
         if not is_initial_timestep:
@@ -465,21 +488,21 @@ def train(seq, args):
             save_path = f"./output/{args.exp_name}/{args.save_name}"
             os.makedirs(save_path, exist_ok=True)
 
-            print("saving mesh to {}".format(os.path.join(save_path, f"mesh_cloth_{t}.obj")))
+            # print("saving mesh to {}".format(os.path.join(save_path, f"mesh_cloth_{t}.obj")))
             # lbs_deformer.save_obj(os.path.join(save_path, f"mesh_cloth_{t}.obj"),
             #                       params['vertices'].detach().cpu().numpy().squeeze(),
             #                       faces.detach().cpu().numpy().squeeze())
 
-            human_v = params['vertices'].detach().clone()  # (V, 3)
-            v_idx = torch.arange(human_v.shape[0]).cuda().long()
-            if 'cloth_v_idx' in variables.keys():
-                cloth_v_idx = variables['cloth_v_idx']
-                v_idx = v_idx[~torch.isin(v_idx, cloth_v_idx)]
-                print('human v idx', v_idx.shape)
-            if len(v_idx) == 0:
-                continue
-            human_v = human_v[v_idx]
-            human_v = human_v.unsqueeze(0)
+            # human_v = params['vertices'].detach().clone()  # (V, 3)
+            # v_idx = torch.arange(human_v.shape[0]).cuda().long()
+            # if 'cloth_v_idx' in variables.keys():
+            #     cloth_v_idx = variables['cloth_v_idx']
+            #     v_idx = v_idx[~torch.isin(v_idx, cloth_v_idx)]
+            #     print('human v idx', v_idx.shape)
+            # if len(v_idx) == 0:
+            #     continue
+            # human_v = human_v[v_idx]
+            # human_v = human_v.unsqueeze(0)
             # smplx_param0 = dataset[0]['smplx_param']
             # smplx_param1 = dataset[0]['smplx_param_1']
             # smplx_param0['beta'] = beta
@@ -506,7 +529,7 @@ if __name__ == "__main__":
     parser.add_argument('--wandb_entity', type=str, default='dress_avatar')
     parser.add_argument('--wandb_name', type=str, default='a1_s1')
 
-    parser.add_argument('--exp_name', type=str, default='exp1_cloth')
+    parser.add_argument('--exp_name', type=str, default='exp1_gstar')
     parser.add_argument('--seq', type=str, default='a1_s1')
     parser.add_argument('--start_idx', type=int, default=460)
     parser.add_argument('--num_frames', type=int, default=200)
