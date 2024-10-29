@@ -413,7 +413,8 @@ def train(seq, args):
     # md = json.load(open(f"./data/{seq}/cam_info.json", 'r'))
     md = json.load(open(f"{root}/{seq}/Dynamic3DGS/train_meta.json", 'r'))
     start_idx = args.start_idx
-    num_timesteps = args.num_frames
+    # num_timesteps = args.num_frames
+    num_timesteps = len(md["fn"])
     params, variables = initialize_params(seq, md, args.obj_name, args.cloth_name)
     optimizer = initialize_optimizer(params, variables, args)
 
@@ -462,7 +463,7 @@ def train(seq, args):
             loss, variables = get_loss(params, curr_data, variables, is_initial_timestep, args)
             loss.backward()
             with torch.no_grad():
-                report_progress(params, variables, dataset[6], i, progress_bar)
+                report_progress(params, variables, dataset[0], i, progress_bar)
 
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
