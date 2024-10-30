@@ -35,6 +35,8 @@ def get_dataset(t, md, seq):
     #                     'Cam109', 'Cam112', 'Cam119', 'Cam127', 'Cam128', 'Cam131', 'Cam137', 'Cam133', 'Cam141', 'Cam121']
     # else:
     #     selected_cam = list(md.keys())[::downsample_view]
+    # for c in md["cam_ids"][t]:
+    #     os.makedirs(f"debug/{c}", exist_ok=True)
     for c in range(len(md["fn"][t])):
         w, h, k, w2c = md['w'], md['h'], md['k'][t][c], md['w2c'][t][c]
         cam_id = md['cam_ids'][t][c]
@@ -44,6 +46,8 @@ def get_dataset(t, md, seq):
         seg = np.array(copy.deepcopy(Image.open(f"{root}/{seq}/scan_mask_2x/{fn.replace('.jpg', '.png')}"))).astype(np.float32)
         seg /= 255
         im = im * seg[:, :, None]
+        # import imageio.v3 as iio
+        # iio.imwrite(f"debug/{fn}", im.astype(np.uint8))
         # mask = seg > 127
         # im = im * mask[:, :, None]
         # seg = seg[:, :, 0]
@@ -428,6 +432,7 @@ def train(seq, args):
     beta = None
     for t in range(resume_idx, resume_idx + num_timesteps):
         dataset = get_dataset(t, md, seq)
+        # continue
         todo_dataset = []
         is_initial_timestep = (t == resume_idx)
         if not is_initial_timestep:
