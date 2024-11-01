@@ -24,8 +24,13 @@ def load_pred_points3d(exp, seq, num_frames):
         faces = torch.from_numpy(params_t["faces"]).cuda()
         means3D = compute_face_barycenters(vertices, faces)
         means3D = means3D.cpu().numpy()
+        # NaN in vertices
+        if i == 0:
+            nan_mask = np.isnan(means3D).any(axis=1)
+        else:
+            assert (np.isnan(means3D).any(axis=1) == nan_mask).all()
+        means3D = means3D[~nan_mask]
         pred_points3d_all.append(means3D)
-    print("Scene data loaded")
     pred_points3d_all = np.array(pred_points3d_all)
         
     return pred_points3d_all
@@ -45,6 +50,7 @@ if __name__ == "__main__":
     num_frames = len(md['fn'])
 
     pred_points3d_all = load_pred_points3d(exp_name, seq, num_frames)
+    assert np.isnan(pred_points3d_all[0]).sum() == 0
     # scene_data = np.load(f"./output/{exp_name}/{seq}/params.npz")
     # pred_points3d_all = scene_data["means3D"]
     gt_points3d = load_gt_tracking(seq)
