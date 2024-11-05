@@ -22,12 +22,12 @@ from losses.physics import collision_penalty
 
 def get_dataset(t, md, seq,  data_path, downsample=False, downsample_view=1):
     dataset = []
-    smplx_param_t = torch.load(f'./data/{seq}/smplx_fitted/{str(t).zfill(6)}.pth')
-    smplx_param_t_1 = torch.load(f'./data/{seq}/smplx_fitted/{str(t + 1).zfill(6)}.pth')
-    smplx_v, smplx_f, smplx_vn = read_obj(f'./data/{args.seq}/smplx_fitted/{str(t).zfill(6)}.obj')
-    smplx_v = torch.from_numpy(smplx_v).cuda().float()
-    smplx_f = torch.from_numpy(smplx_f).cuda().long()
-    smplx_vn = compute_vertex_normals(smplx_v, smplx_f).cuda().float()
+    # smplx_param_t = torch.load(f'./data/{seq}/smplx_fitted/{str(t).zfill(6)}.pth')
+    # smplx_param_t_1 = torch.load(f'./data/{seq}/smplx_fitted/{str(t + 1).zfill(6)}.pth')
+    # smplx_v, smplx_f, smplx_vn = read_obj(f'./data/{args.seq}/smplx_fitted/{str(t).zfill(6)}.obj')
+    # smplx_v = torch.from_numpy(smplx_v).cuda().float()
+    # smplx_f = torch.from_numpy(smplx_f).cuda().long()
+    # smplx_vn = compute_vertex_normals(smplx_v, smplx_f).cuda().float()
 
     if downsample_view == 8:
         selected_cam = ['Cam005', 'Cam008', 'Cam023', 'Cam037', 'Cam053', 'Cam055', 'Cam078', 'Cam079', 'Cam094', 'Cam096',
@@ -53,9 +53,9 @@ def get_dataset(t, md, seq,  data_path, downsample=False, downsample_view=1):
         im = torch.tensor(im).float().cuda().permute(2, 0, 1) / 255
         if downsample:
             im = torch.nn.functional.interpolate(im[None], scale_factor=0.5, mode='bilinear', align_corners=False)[0]
-        dataset.append({'cam': cam, 'im': im, 'id': int(cam_name) - 1, 't': t,
-                        'smplx_param': smplx_param_t, 'smplx_param_1': smplx_param_t_1,
-                        'smplx_v': smplx_v, 'smplx_vn': smplx_vn})
+        dataset.append({'cam': cam, 'im': im, 'id': int(cam_name) - 1, 't': t,})
+                        #'smplx_param': smplx_param_t, 'smplx_param_1': smplx_param_t_1,
+                        #'smplx_v': smplx_v, 'smplx_vn': smplx_vn})
     return dataset
 
 
@@ -98,10 +98,10 @@ def initialize_params(seq, md, obj_fn, cloth_fn):
     obj_fn = f"./data/{seq}/{obj_fn}"
     obj, faces, normals = read_obj(obj_fn)
 
-    cloth_fn = f"./data/{seq}/{cloth_fn}"
-    if not os.path.exists(cloth_fn):
-        print(f"cloth_fn {cloth_fn} does not exist")
-        cloth_fn = obj_fn
+    # cloth_fn = f"./data/{seq}/{cloth_fn}"
+    # if not os.path.exists(cloth_fn):
+    #     print(f"cloth_fn {cloth_fn} does not exist")
+    #     cloth_fn = obj_fn
 
     max_cams = 160
     init_v = obj[:, :3]
@@ -154,12 +154,12 @@ def initialize_params(seq, md, obj_fn, cloth_fn):
                  'face_neighbors': torch.tensor(face_neighbors).cuda().long(),
                  'neighbor_weight': torch.tensor(neighbor_weight).cuda().float().contiguous(),
                  'neighbor_dist': torch.tensor(neighbor_dist).cuda().float().contiguous(),}
-    if os.path.exists(cloth_fn):
-        cloth_obj, cloth_faces, cloth_normals = read_obj(cloth_fn)
-        cloth_vertices = np.unique(cloth_faces.reshape(-1))
-        cloth_vertices = torch.tensor(cloth_vertices).cuda().long()
-        variables['cloth_v_idx'] = cloth_vertices
-        print('cloth vertices', cloth_vertices.shape)
+    # if os.path.exists(cloth_fn):
+    #     cloth_obj, cloth_faces, cloth_normals = read_obj(cloth_fn)
+    #     cloth_vertices = np.unique(cloth_faces.reshape(-1))
+    #     cloth_vertices = torch.tensor(cloth_vertices).cuda().long()
+    #     variables['cloth_v_idx'] = cloth_vertices
+    #     print('cloth vertices', cloth_vertices.shape)
 
     return params, variables
 
@@ -254,16 +254,16 @@ def get_loss(params, curr_data, variables, is_initial_timestep, args):
     mean_area = face_area.mean()
     losses['eq_faces_weight'] = (face_area - mean_area).abs().mean()
 
-    smplx_v = curr_data['smplx_v']
-    smplx_vn = curr_data['smplx_vn']
+    # smplx_v = curr_data['smplx_v']
+    # smplx_vn = curr_data['smplx_vn']
 
 
-    if 'cloth_v_idx' in variables.keys():
-        cloth_vertices = vertices[variables['cloth_v_idx']]
-        losses['collision_l'] = collision_penalty(cloth_vertices, smplx_v, smplx_vn,
-                                                  return_average=True)
-    else:
-        losses['collision_l'] = 0.0
+    # if 'cloth_v_idx' in variables.keys():
+    #     cloth_vertices = vertices[variables['cloth_v_idx']]
+    #     losses['collision_l'] = collision_penalty(cloth_vertices, smplx_v, smplx_vn,
+    #                                               return_average=True)
+    # else:
+    #     losses['collision_l'] = 0.0
 
     if not is_initial_timestep:
         losses['soft_col_cons'] = l1_loss_v2(params['rgb_colors'], variables["prev_col"])
@@ -307,10 +307,10 @@ def initialize_per_timestep(params, variables, optimizer):
     variables["prev_pts"] = pts.detach().clone()
     variables["prev_rot"] = rot.detach()
 
-    if 'cloth_v_idx' in variables.keys():
-        cloth_v_idx = variables['cloth_v_idx']
-        print('update cloth vertices using inertia, cloth_v_idx: ', cloth_v_idx.shape)
-        pts[cloth_v_idx] = new_pts[cloth_v_idx]
+    # if 'cloth_v_idx' in variables.keys():
+    #     cloth_v_idx = variables['cloth_v_idx']
+    #     print('update cloth vertices using inertia, cloth_v_idx: ', cloth_v_idx.shape)
+    #     pts[cloth_v_idx] = new_pts[cloth_v_idx]
     new_params = {'vertices': pts.detach()}
 
     params = update_params_and_optimizer(new_params, params, optimizer)
@@ -393,7 +393,7 @@ def train(seq, args):
     params, variables = initialize_params(seq, md, args.obj_name, args.cloth_name)
     optimizer = initialize_optimizer(params, variables, args)
 
-    lbs_deformer = SmplxDeformer(gender=args.smplx_gender)
+    # lbs_deformer = SmplxDeformer(gender=args.smplx_gender)
 
     resume_idx = start_idx if not args.resume else args.resume_t
     if args.resume:
@@ -409,32 +409,32 @@ def train(seq, args):
             optimizer = set_optimizer_lr(optimizer, variables, args, is_initial_timestep)
             params, variables = initialize_per_timestep(params, variables, optimizer)
 
-        smplx_param_t = dataset[0]['smplx_param']
-        for k, v in smplx_param_t.items():
-            if k == 'latent':
-                v.requires_grad = True
-            else:
-                v.requires_grad = False
-        if not is_initial_timestep:
-            smplx_param_t['beta'] = beta.detach()
-            smplx_param_t['beta'].requires_grad = False
-        else:
-            smplx_param_t['beta'].requires_grad = True
+        # smplx_param_t = dataset[0]['smplx_param']
+        # for k, v in smplx_param_t.items():
+        #     if k == 'latent':
+        #         v.requires_grad = True
+        #     else:
+        #         v.requires_grad = False
+        # if not is_initial_timestep:
+        #     smplx_param_t['beta'] = beta.detach()
+        #     smplx_param_t['beta'].requires_grad = False
+        # else:
+        #     smplx_param_t['beta'].requires_grad = True
 
-        if is_initial_timestep:
-            optimizer_smplx = torch.optim.Adam([v for k, v in smplx_param_t.items() if v.requires_grad], lr=args.lr_smplx)
-        else:
-            optimizer_smplx = torch.optim.Adam([v for k, v in smplx_param_t.items() if v.requires_grad], lr=args.lr_smplx)
-        _, smplx_f, _ = read_obj('./data/{}/smplx_fitted/{}.obj'.format(seq, str(t).zfill(6)))
-        smplx_f = torch.from_numpy(smplx_f).cuda().long()
+        # if is_initial_timestep:
+        #     optimizer_smplx = torch.optim.Adam([v for k, v in smplx_param_t.items() if v.requires_grad], lr=args.lr_smplx)
+        # else:
+        #     optimizer_smplx = torch.optim.Adam([v for k, v in smplx_param_t.items() if v.requires_grad], lr=args.lr_smplx)
+        # _, smplx_f, _ = read_obj('./data/{}/smplx_fitted/{}.obj'.format(seq, str(t).zfill(6)))
+        # smplx_f = torch.from_numpy(smplx_f).cuda().long()
 
         num_iter_per_timestep = 10000 if is_initial_timestep else 3000
         progress_bar = tqdm(range(num_iter_per_timestep), desc=f"timestep {t}")
         for i in range(num_iter_per_timestep):
             curr_data = get_batch(todo_dataset, dataset)
-            smplx_out = lbs_deformer.smplx_forward(smplx_param_t)
-            curr_data['smplx_v'] = smplx_out.vertices.squeeze()
-            curr_data['smplx_vn'] = compute_vertex_normals(smplx_out.vertices.squeeze(), smplx_f)
+            # smplx_out = lbs_deformer.smplx_forward(smplx_param_t)
+            # curr_data['smplx_v'] = smplx_out.vertices.squeeze()
+            # curr_data['smplx_vn'] = compute_vertex_normals(smplx_out.vertices.squeeze(), smplx_f)
             loss, variables = get_loss(params, curr_data, variables, is_initial_timestep, args)
             loss.backward()
             with torch.no_grad():
@@ -442,8 +442,8 @@ def train(seq, args):
 
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
-                optimizer_smplx.step()
-                optimizer_smplx.zero_grad(set_to_none=True)
+                # optimizer_smplx.step()
+                # optimizer_smplx.zero_grad(set_to_none=True)
         progress_bar.close()
         faces = variables["faces"]
         params_ = params
@@ -452,45 +452,45 @@ def train(seq, args):
         output_params = params2cpu(params_, is_initial_timestep)
         smplx_save_path = f"./output/{args.exp_name}/{args.save_name}/smplx"
         os.makedirs(smplx_save_path, exist_ok=True)
-        torch.save(smplx_param_t, os.path.join(smplx_save_path, f"{str(t).zfill(6)}.pth"))
-        lbs_deformer.export(smplx_param_t, os.path.join(smplx_save_path, f"{str(t).zfill(6)}.obj"))
+        # torch.save(smplx_param_t, os.path.join(smplx_save_path, f"{str(t).zfill(6)}.pth"))
+        # lbs_deformer.export(smplx_param_t, os.path.join(smplx_save_path, f"{str(t).zfill(6)}.obj"))
 
         if is_initial_timestep:
             variables = initialize_post_first_timestep(params, variables, optimizer)
-            beta = smplx_param_t['beta']
+            # beta = smplx_param_t['beta']
         # transform the mesh to the new pose
         with torch.no_grad():
             # save mesh
             save_path = f"./output/{args.exp_name}/{args.save_name}"
             os.makedirs(save_path, exist_ok=True)
 
-            print("saving mesh to {}".format(os.path.join(save_path, f"mesh_cloth_{t}.obj")))
-            lbs_deformer.save_obj(os.path.join(save_path, f"mesh_cloth_{t}.obj"),
-                                  params['vertices'].detach().cpu().numpy().squeeze(),
-                                  faces.detach().cpu().numpy().squeeze())
+            # print("saving mesh to {}".format(os.path.join(save_path, f"mesh_cloth_{t}.obj")))
+            # lbs_deformer.save_obj(os.path.join(save_path, f"mesh_cloth_{t}.obj"),
+            #                       params['vertices'].detach().cpu().numpy().squeeze(),
+            #                       faces.detach().cpu().numpy().squeeze())
 
-            human_v = params['vertices'].detach().clone()  # (V, 3)
-            v_idx = torch.arange(human_v.shape[0]).cuda().long()
-            if 'cloth_v_idx' in variables.keys():
-                cloth_v_idx = variables['cloth_v_idx']
-                v_idx = v_idx[~torch.isin(v_idx, cloth_v_idx)]
-                print('human v idx', v_idx.shape)
-            if len(v_idx) == 0:
-                continue
-            human_v = human_v[v_idx]
-            human_v = human_v.unsqueeze(0)
-            smplx_param0 = dataset[0]['smplx_param']
-            smplx_param1 = dataset[0]['smplx_param_1']
-            smplx_param0['beta'] = beta
-            smplx_param1['beta'] = beta
-            smplx = lbs_deformer.smplx_forward(smplx_param0)
-            smplx1 = lbs_deformer.smplx_forward(smplx_param1)
-            t_human_v, transform_matrix, lbs_w = lbs_deformer.transform_to_t_pose(human_v, smplx, smplx_param0['trans'], smplx_param0['scale'])
+            # human_v = params['vertices'].detach().clone()  # (V, 3)
+            # v_idx = torch.arange(human_v.shape[0]).cuda().long()
+            # if 'cloth_v_idx' in variables.keys():
+            #     cloth_v_idx = variables['cloth_v_idx']
+            #     v_idx = v_idx[~torch.isin(v_idx, cloth_v_idx)]
+            #     print('human v idx', v_idx.shape)
+            # if len(v_idx) == 0:
+            #     continue
+            # human_v = human_v[v_idx]
+            # human_v = human_v.unsqueeze(0)
+            # smplx_param0 = dataset[0]['smplx_param']
+            # smplx_param1 = dataset[0]['smplx_param_1']
+            # smplx_param0['beta'] = beta
+            # smplx_param1['beta'] = beta
+            # smplx = lbs_deformer.smplx_forward(smplx_param0)
+            # smplx1 = lbs_deformer.smplx_forward(smplx_param1)
+            # t_human_v, transform_matrix, lbs_w = lbs_deformer.transform_to_t_pose(human_v, smplx, smplx_param0['trans'], smplx_param0['scale'])
 
-            t_human_v = t_human_v.squeeze().unsqueeze(0)
-            t_human_v1, transform_matrix1 = lbs_deformer.transform_to_pose(t_human_v, lbs_w, smplx1, smplx_param1['trans'], smplx_param1['scale'])
+            # t_human_v = t_human_v.squeeze().unsqueeze(0)
+            # t_human_v1, transform_matrix1 = lbs_deformer.transform_to_pose(t_human_v, lbs_w, smplx1, smplx_param1['trans'], smplx_param1['scale'])
 
-            params['vertices'][v_idx] = t_human_v1.squeeze()
+            # params['vertices'][v_idx] = t_human_v1.squeeze()
 
         os.makedirs(f"./output/{args.exp_name}/{args.save_name}", exist_ok=True)
         np.savez(f"./output/{args.exp_name}/{args.save_name}/params_{t}", **output_params)
