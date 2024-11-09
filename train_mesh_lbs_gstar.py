@@ -476,7 +476,13 @@ def train(seq, args):
         if is_initial_timestep:
             optimizer_smplx = torch.optim.Adam([v for k, v in smplx_param_t.items() if v.requires_grad], lr=args.lr_smplx)
         else:
-            optimizer_smplx = torch.optim.Adam([v for k, v in smplx_param_t.items() if v.requires_grad], lr=args.lr_smplx)
+            params_list = [v for k, v in smplx_param_t.items() if v.requires_grad]
+            if len(params_list) > 0:
+                optimizer_smplx = torch.optim.Adam(params_list, lr=args.lr_smplx)
+            else:
+                # Nothing needed to be updated
+                optimizer_smplx = None
+
         frame_idx = int(md["fn"][t][0].split("/")[1][:-4])
         _, smplx_f, _ = read_obj(f"{root}/{seq}/PhysAvatar/smplx_meshes/mesh_{frame_idx:06d}.obj")
         smplx_f = torch.from_numpy(smplx_f).cuda().long()
@@ -495,8 +501,9 @@ def train(seq, args):
 
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
-                optimizer_smplx.step()
-                optimizer_smplx.zero_grad(set_to_none=True)
+                if optimizer_smplx is not None:
+                    optimizer_smplx.step()
+                    optimizer_smplx.zero_grad(set_to_none=True)
         progress_bar.close()
         faces = variables["faces"]
         params_ = params
