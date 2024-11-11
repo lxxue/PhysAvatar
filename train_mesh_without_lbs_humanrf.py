@@ -98,10 +98,10 @@ def initialize_params(seq, md, obj_fn, cloth_fn):
     obj_fn = f"./data/{seq}/{obj_fn}"
     obj, faces, normals = read_obj(obj_fn)
 
-    # cloth_fn = f"./data/{seq}/{cloth_fn}"
-    # if not os.path.exists(cloth_fn):
-    #     print(f"cloth_fn {cloth_fn} does not exist")
-    #     cloth_fn = obj_fn
+    cloth_fn = f"./data/{seq}/{cloth_fn}"
+    if not os.path.exists(cloth_fn):
+        print(f"cloth_fn {cloth_fn} does not exist")
+        cloth_fn = obj_fn
 
     max_cams = 160
     init_v = obj[:, :3]
@@ -154,12 +154,12 @@ def initialize_params(seq, md, obj_fn, cloth_fn):
                  'face_neighbors': torch.tensor(face_neighbors).cuda().long(),
                  'neighbor_weight': torch.tensor(neighbor_weight).cuda().float().contiguous(),
                  'neighbor_dist': torch.tensor(neighbor_dist).cuda().float().contiguous(),}
-    # if os.path.exists(cloth_fn):
-    #     cloth_obj, cloth_faces, cloth_normals = read_obj(cloth_fn)
-    #     cloth_vertices = np.unique(cloth_faces.reshape(-1))
-    #     cloth_vertices = torch.tensor(cloth_vertices).cuda().long()
-    #     variables['cloth_v_idx'] = cloth_vertices
-    #     print('cloth vertices', cloth_vertices.shape)
+    if os.path.exists(cloth_fn):
+        cloth_obj, cloth_faces, cloth_normals = read_obj(cloth_fn)
+        cloth_vertices = np.unique(cloth_faces.reshape(-1))
+        cloth_vertices = torch.tensor(cloth_vertices).cuda().long()
+        variables['cloth_v_idx'] = cloth_vertices
+        print('cloth vertices', cloth_vertices.shape)
 
     return params, variables
 
@@ -307,10 +307,10 @@ def initialize_per_timestep(params, variables, optimizer):
     variables["prev_pts"] = pts.detach().clone()
     variables["prev_rot"] = rot.detach()
 
-    # if 'cloth_v_idx' in variables.keys():
-    #     cloth_v_idx = variables['cloth_v_idx']
-    #     print('update cloth vertices using inertia, cloth_v_idx: ', cloth_v_idx.shape)
-    #     pts[cloth_v_idx] = new_pts[cloth_v_idx]
+    if 'cloth_v_idx' in variables.keys():
+        cloth_v_idx = variables['cloth_v_idx']
+        print('update cloth vertices using inertia, cloth_v_idx: ', cloth_v_idx.shape)
+        pts[cloth_v_idx] = new_pts[cloth_v_idx]
     new_params = {'vertices': pts.detach()}
 
     params = update_params_and_optimizer(new_params, params, optimizer)
