@@ -445,6 +445,7 @@ def train(seq, args):
     params, variables = initialize_params(seq, md, args.obj_name, args.cloth_name)
     optimizer = initialize_optimizer(params, variables, args)
 
+    print("initializing smplx deformer with gender", args.smplx_gender)
     lbs_deformer = SmplxDeformer(gender=args.smplx_gender)
 
     resume_idx = start_idx if not args.resume else args.resume_t
@@ -463,7 +464,7 @@ def train(seq, args):
 
         smplx_param_t = dataset[0]['smplx_param']
         for k, v in smplx_param_t.items():
-            if k == 'latent':
+            if k == 'latent' or k == "body_pose":
                 v.requires_grad = True
             else:
                 v.requires_grad = False
@@ -477,11 +478,7 @@ def train(seq, args):
             optimizer_smplx = torch.optim.Adam([v for k, v in smplx_param_t.items() if v.requires_grad], lr=args.lr_smplx)
         else:
             params_list = [v for k, v in smplx_param_t.items() if v.requires_grad]
-            if len(params_list) > 0:
-                optimizer_smplx = torch.optim.Adam(params_list, lr=args.lr_smplx)
-            else:
-                # Nothing needed to be updated
-                optimizer_smplx = None
+            optimizer_smplx = torch.optim.Adam(params_list, lr=args.lr_smplx)
 
         frame_idx = int(md["fn"][t][0].split("/")[1][:-4])
         _, smplx_f, _ = read_obj(f"{root}/{seq}/PhysAvatar/smplx_meshes/mesh_{frame_idx:06d}.obj")
@@ -501,9 +498,8 @@ def train(seq, args):
 
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
-                if optimizer_smplx is not None:
-                    optimizer_smplx.step()
-                    optimizer_smplx.zero_grad(set_to_none=True)
+                optimizer_smplx.step()
+                optimizer_smplx.zero_grad(set_to_none=True)
         progress_bar.close()
         faces = variables["faces"]
         params_ = params
