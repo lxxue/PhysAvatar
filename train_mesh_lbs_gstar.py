@@ -531,24 +531,24 @@ def train(seq, args):
                 cloth_v_idx = variables['cloth_v_idx']
                 v_idx = v_idx[~torch.isin(v_idx, cloth_v_idx)]
                 print('human v idx', v_idx.shape)
-            if len(v_idx) == 0:
-                continue
-            human_v = human_v[v_idx]
-            human_v = human_v.unsqueeze(0)
-            smplx_param0 = dataset[0]['smplx_param']
-            smplx_param1 = dataset[0]['smplx_param_1']
-            smplx_param0['beta'] = beta
-            smplx_param1['beta'] = beta
-            smplx = lbs_deformer.smplx_forward(smplx_param0)
-            smplx1 = lbs_deformer.smplx_forward(smplx_param1)
-            t_human_v, transform_matrix, lbs_w = lbs_deformer.transform_to_t_pose(human_v, smplx, smplx_param0['trans'], smplx_param0['scale'])
+            if len(v_idx) > 0:
+                human_v = human_v[v_idx]
+                human_v = human_v.unsqueeze(0)
+                smplx_param0 = dataset[0]['smplx_param']
+                smplx_param1 = dataset[0]['smplx_param_1']
+                smplx_param0['beta'] = beta
+                smplx_param1['beta'] = beta
+                smplx = lbs_deformer.smplx_forward(smplx_param0)
+                smplx1 = lbs_deformer.smplx_forward(smplx_param1)
+                t_human_v, transform_matrix, lbs_w = lbs_deformer.transform_to_t_pose(human_v, smplx, smplx_param0['trans'], smplx_param0['scale'])
 
-            t_human_v = t_human_v.squeeze().unsqueeze(0)
-            t_human_v1, transform_matrix1 = lbs_deformer.transform_to_pose(t_human_v, lbs_w, smplx1, smplx_param1['trans'], smplx_param1['scale'])
+                t_human_v = t_human_v.squeeze().unsqueeze(0)
+                t_human_v1, transform_matrix1 = lbs_deformer.transform_to_pose(t_human_v, lbs_w, smplx1, smplx_param1['trans'], smplx_param1['scale'])
 
-            params['vertices'][v_idx] = t_human_v1.squeeze()
+                params['vertices'][v_idx] = t_human_v1.squeeze()
 
         os.makedirs(f"./output/{args.exp_name}/{args.save_name}", exist_ok=True)
+        print("saving params to {}".format(f"./output/{args.exp_name}/{args.save_name}/params_{t}.npz"))
         np.savez(f"./output/{args.exp_name}/{args.save_name}/params_{t}", **output_params)
 
 if __name__ == "__main__":
