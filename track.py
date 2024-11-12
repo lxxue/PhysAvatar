@@ -41,10 +41,12 @@ def load_pred_points3d(exp, seq, num_frames):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--exp_name", type=str, required=True)
     parser.add_argument("--seq", type=str, required=True)
     args = parser.parse_args()
     seq = args.seq
-    exp_name = "exp1_gstar"
+    # exp_name = "exp1_gstar"
+    exp_name = args.exp_name
     root = "/home/lixin/mount/scratch/lixin/GSTAR"
     md = json.load(open(f"{root}/{seq}/Dynamic3DGS/train_meta.json", 'r'))
     num_frames = len(md['fn'])
@@ -72,5 +74,5 @@ if __name__ == "__main__":
             pred_points3d[i, j] = pred_points3d_all[:, k, :]
             # exit(0)
 
-    np.save(f"{root}/{seq}/PhysAvatar/pred_points3d.npy", pred_points3d)
+    np.save(f"{root}/{seq}/PhysAvatar/{exp_name}_pred_points3d.npy", pred_points3d)
 

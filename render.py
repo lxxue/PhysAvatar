@@ -44,7 +44,7 @@ def render_all_timesteps(exp_name, seq, split):
     num_frames = len(md['fn'])
 
     scene_data = load_scene_data(exp_name, seq, num_frames)
-    output_dir = Path(f"{root}/{seq}/PhysAvatar/renders")
+    output_dir = Path(f"{root}/{seq}/PhysAvatar/renders_{exp_name}")
     output_dir.mkdir(exist_ok=True, parents=True)
     num_cams = len(md['fn'][0])
     w = md['w']
@@ -67,10 +67,11 @@ def render_all_timesteps(exp_name, seq, split):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--exp_name", type=str, required=True)
     parser.add_argument("--seq", type=str, required=True)
     args = parser.parse_args()
+    exp_name = args.exp_name
     seq = args.seq
-    exp_name = "exp1_gstar"
     render_all_timesteps(exp_name, seq, 'train')
     render_all_timesteps(exp_name, seq, 'test')
 
